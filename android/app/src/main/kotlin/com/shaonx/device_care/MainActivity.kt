@@ -1,4 +1,4 @@
-package com.shaonx.device-care
+package com.shaonx.device_care-care
 
 import android.content.Intent
 import android.net.Uri
