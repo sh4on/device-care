@@ -1,4 +1,4 @@
-package com.example.flutter_phone_events
+package com.shaonx.device-care
 
 import android.content.Intent
 import android.net.Uri
