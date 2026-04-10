@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Device Care</string>
+    <string name="accessibility_service_label">Device Care Accessibility</string>
+    <string name="accessibility_service_description">
+        Device Care uses accessibility features to monitor system input performance
+        and optimize device responsiveness in real time.
+    </string>
+</resources>
