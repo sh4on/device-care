@@ -1,4 +1,4 @@
-package com.example.flutter_phone_events
+package com.shaonx.device_care
 
 import android.accessibilityservice.AccessibilityService
 import android.view.accessibility.AccessibilityEvent
