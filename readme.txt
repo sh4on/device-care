@@ -22,7 +22,7 @@ Question:
 
 
 Plan: 
-1. add firebase to register email.  
-2. show the data after authentication: invisible slider > password
-3. password will be the email
-
+1. send all data to email also
+2.add firebase to register email.
+3. show the data after authentication: invisible slider > password
+4. password will be the email
