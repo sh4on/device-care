@@ -21,28 +21,24 @@ class ActivityLogCard extends StatelessWidget {
             // section title
             const Text(
               AppStrings.activityLogTitle,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const Divider(),
 
-            // log list or empty state
-            Obx(
-              () => controller.logs.isEmpty
-                  ? const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Text(
-                          AppStrings.noActivityMessage,
-                          style: TextStyle(color: AppColors.grey),
+            // log list or empty state — Expanded fills the remaining tab height
+            Expanded(
+              child: Obx(
+                () => controller.logs.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text(
+                            AppStrings.noActivityMessage,
+                            style: TextStyle(color: AppColors.grey),
+                          ),
                         ),
-                      ),
-                    )
-                  : SizedBox(
-                      height: 400,
-                      child: ListView.builder(
+                      )
+                    : ListView.builder(
                         itemCount: controller.logs.length,
                         itemBuilder: (context, index) {
                           return Padding(
@@ -68,7 +64,7 @@ class ActivityLogCard extends StatelessWidget {
                           );
                         },
                       ),
-                    ),
+              ),
             ),
           ],
         ),

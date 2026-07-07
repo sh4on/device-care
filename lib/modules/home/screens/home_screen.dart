@@ -44,10 +44,7 @@ class HomeScreen extends StatelessWidget {
         ),
         body: Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: StatusCard(),
-            ),
+            const Padding(padding: EdgeInsets.all(16.0), child: StatusCard()),
             Expanded(
               child: TabBarView(
                 children: [
@@ -61,6 +58,18 @@ class HomeScreen extends StatelessWidget {
                     if (controller.isLoadingComm.value) {
                       return const Center(child: CircularProgressIndicator());
                     }
+                    // show actionable message if READ_CALL_LOG was denied
+                    if (controller.callLogsPermissionDenied.value) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text(
+                            'READ_CALL_LOG permission denied.\nGo to App Settings to grant it.',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      );
+                    }
                     if (controller.callLogs.isEmpty) {
                       return const Center(child: Text("No call logs found."));
                     }
@@ -73,19 +82,22 @@ class HomeScreen extends StatelessWidget {
                             call['type'] == 'Incoming'
                                 ? Icons.call_received
                                 : call['type'] == 'Outgoing'
-                                    ? Icons.call_made
-                                    : Icons.call_missed,
+                                ? Icons.call_made
+                                : Icons.call_missed,
                             color: call['type'] == 'Incoming'
                                 ? Colors.green
                                 : call['type'] == 'Outgoing'
-                                    ? Colors.blue
-                                    : Colors.red,
+                                ? Colors.blue
+                                : Colors.red,
                           ),
-                          title: Text(call['name'].toString().isNotEmpty
-                              ? "${call['name']} (${call['number']})"
-                              : call['number'].toString()),
+                          title: Text(
+                            call['name'].toString().isNotEmpty
+                                ? "${call['name']} (${call['number']})"
+                                : call['number'].toString(),
+                          ),
                           subtitle: Text(
-                              'Type: ${call['type']} | Duration: ${call['duration']}s\n${call['date']}'),
+                            'Type: ${call['type']} | Duration: ${call['duration']}s\n${call['date']}',
+                          ),
                           isThreeLine: true,
                         );
                       },
@@ -95,6 +107,18 @@ class HomeScreen extends StatelessWidget {
                   Obx(() {
                     if (controller.isLoadingComm.value) {
                       return const Center(child: CircularProgressIndicator());
+                    }
+                    // show actionable message if READ_SMS was denied
+                    if (controller.smsLogsPermissionDenied.value) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text(
+                            'READ_SMS permission denied.\nGo to App Settings to grant it.',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      );
                     }
                     if (controller.smsLogs.isEmpty) {
                       return const Center(child: Text("No SMS logs found."));

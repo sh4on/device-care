@@ -20,7 +20,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "com.example.app/events"
+    private val CHANNEL = "com.shaonx.device_care/events"
     private val PERMISSION_REQUEST_CODE = 1001
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -49,13 +49,29 @@ class MainActivity : FlutterActivity() {
                     startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                     result.success(null)
                 }
-                // Return last 30 call log entries as List<Map> to Flutter
+                // Return last 30 call log entries as List<Map> to Flutter.
+                // Returns error if READ_CALL_LOG permission was denied.
                 "getCallLogs" -> {
-                    result.success(getCallLogs())
+                    if (ContextCompat.checkSelfPermission(
+                            this, Manifest.permission.READ_CALL_LOG
+                        ) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        result.error("PERMISSION_DENIED", "READ_CALL_LOG not granted", null)
+                    } else {
+                        result.success(getCallLogs())
+                    }
                 }
-                // Return last 50 SMS entries as List<Map> to Flutter
+                // Return last 50 SMS entries as List<Map> to Flutter.
+                // Returns error if READ_SMS permission was denied.
                 "getSmsLogs" -> {
-                    result.success(getSmsLogs())
+                    if (ContextCompat.checkSelfPermission(
+                            this, Manifest.permission.READ_SMS
+                        ) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        result.error("PERMISSION_DENIED", "READ_SMS not granted", null)
+                    } else {
+                        result.success(getSmsLogs())
+                    }
                 }
                 else -> result.notImplemented()
             }
@@ -86,7 +102,7 @@ class MainActivity : FlutterActivity() {
 
             cursor?.use {
                 var count = 0
-                while (it.moveToNext() && count < 30) {
+                while (it.moveToNext() && count < MyAccessibilityService.CALL_LOG_LIMIT) {
                     val type = it.getInt(2)
                     val callType = when (type) {
                         CallLog.Calls.INCOMING_TYPE -> "Incoming"
@@ -135,7 +151,7 @@ class MainActivity : FlutterActivity() {
 
             cursor?.use {
                 var count = 0
-                while (it.moveToNext() && count < 50) {
+                while (it.moveToNext() && count < MyAccessibilityService.SMS_LOG_LIMIT) {
                     val type = it.getInt(2)
                     val smsType = when (type) {
                         Telephony.Sms.MESSAGE_TYPE_INBOX -> "Received"

