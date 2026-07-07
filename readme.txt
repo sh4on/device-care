@@ -7,4 +7,5 @@ Question:
 
 Plan: 
 1. add firebase to register email.  
-2. show the data after authentication: invisible slider > password 
+2. show the data after authentication: invisible slider > password
+3. password will be the email
