@@ -26,3 +26,8 @@ Plan:
 2.add firebase to register email.
 3. show the data after authentication: invisible slider > password
 4. password will be the email
+
+
+1. First check, if there is email saved, if there is mail saved, compare both and navigate to home screen, if equal. If not equal then clear it. Then go to next step.
+2. If there is no email saved, first check if it is present in firbase, if it present in firebase, then it will navigate to home screen but save it before.
+3. If it is not present in firebase, just close the dialog box. no action happens.
